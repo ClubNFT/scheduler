@@ -93,7 +93,7 @@
 
 [[projects]]
   digest = "1:04b59baeb0ff64fb45553afbec8b715049f3aa1dd56e31d71251dcba03feba94"
-  name = "github.com/rakanalh/scheduler"
+  name = "github.com/ClubNFT/scheduler"
   packages = [
     "storage",
     "task",
@@ -178,8 +178,8 @@
     "github.com/mongodb/mongo-go-driver/bson",
     "github.com/mongodb/mongo-go-driver/mongo",
     "github.com/mongodb/mongo-go-driver/x/bsonx",
-    "github.com/rakanalh/scheduler/storage",
-    "github.com/rakanalh/scheduler/task",
+    "github.com/ClubNFT/scheduler/storage",
+    "github.com/ClubNFT/scheduler/task",
     "github.com/stretchr/testify/mock",
     "github.com/stretchr/testify/require",
   ]

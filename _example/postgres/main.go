@@ -5,8 +5,8 @@ import (
 	"log"
 	"time"
 
-	"github.com/rakanalh/scheduler"
-	"github.com/rakanalh/scheduler/storage"
+	"github.com/ClubNFT/scheduler"
+	"github.com/ClubNFT/scheduler/storage"
 )
 
 func TaskWithoutArgs() {
@@ -30,10 +30,11 @@ func main() {
 	s := scheduler.New(storage)
 
 	go func(s scheduler.Scheduler, store io.Closer) {
-		time.Sleep(time.Second * 10)
+		time.Sleep(time.Minute * 5)
 		// store.Close()
 		s.Stop()
 	}(s, storage)
+
 	// Start a task without arguments
 	if _, err := s.RunAfter(60*time.Second, TaskWithoutArgs); err != nil {
 		log.Fatal(err)
