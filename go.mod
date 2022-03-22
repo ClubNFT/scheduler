@@ -1,4 +1,4 @@
-module github.com/ClubNFT/scheduler
+module github.com/rakanalh/scheduler
 
 go 1.18
 
@@ -6,7 +6,6 @@ require (
 	github.com/lib/pq v1.10.4
 	github.com/mattn/go-sqlite3 v1.10.0
 	github.com/mongodb/mongo-go-driver v0.1.0
-	github.com/rakanalh/scheduler v0.0.0-20190102064836-8f5e7f9b88bb
 	github.com/stretchr/testify v1.2.2
 )
 
