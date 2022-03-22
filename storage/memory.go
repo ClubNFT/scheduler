@@ -5,6 +5,10 @@ type MemoryStorage struct {
 	tasks []TaskAttributes
 }
 
+func (memStore *MemoryStorage) Update(attributes TaskAttributes) error {
+	return nil
+}
+
 // NewMemoryStorage returns an instance of MemoryStorage.
 func NewMemoryStorage() *MemoryStorage {
 	return &MemoryStorage{}

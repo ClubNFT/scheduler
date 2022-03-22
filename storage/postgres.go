@@ -48,7 +48,7 @@ func (postgres *postgresStorage) connect() (err error) {
 
 func (postgres *postgresStorage) initialize() (err error) {
 	stmt := `
-	CREATE TABLE IF NOT EXISTS task_store (
+	CREATE TABLE IF NOT EXISTS scheduled_tasks (
 		id SERIAL NOT NULL PRIMARY KEY,
 		name text,
 		params text,
@@ -72,9 +72,9 @@ func (postgres *postgresStorage) Close() error {
 }
 
 func (postgres *postgresStorage) Add(task TaskAttributes) error {
-	// should add a task to the database `task_store` table
+	// should add a task to the database `scheduled_tasks` table
 	var count int
-	rows, err := postgres.db.Query("SELECT count(*) FROM task_store WHERE hash=($1) ;", task.Hash)
+	rows, err := postgres.db.Query("SELECT count(*) FROM scheduled_tasks WHERE hash=($1) ;", task.Hash)
 	defer rows.Close()
 	if err == nil {
 		rows.Next()
@@ -88,9 +88,9 @@ func (postgres *postgresStorage) Add(task TaskAttributes) error {
 }
 
 func (postgres *postgresStorage) Update(task TaskAttributes) error {
-	// should update a task in the database `task_store` table
+	// should update a task in the database `scheduled_tasks` table
 	var count int
-	rows, err := postgres.db.Query("SELECT count(*) FROM task_store WHERE hash=($1) ;", task.Hash)
+	rows, err := postgres.db.Query("SELECT count(*) FROM scheduled_tasks WHERE hash=($1) ;", task.Hash)
 	defer rows.Close()
 	if err == nil {
 		rows.Next()
@@ -105,10 +105,10 @@ func (postgres *postgresStorage) Update(task TaskAttributes) error {
 }
 
 func (postgres *postgresStorage) Fetch() ([]TaskAttributes, error) {
-	// read all the rows task_store table.
+	// read all the rows scheduled_tasks table.
 	rows, err := postgres.db.Query(`
         SELECT name, params, duration, last_run, next_run, is_recurring
-        FROM task_store ;`)
+        FROM scheduled_tasks ;`)
 
 	if err != nil {
 		log.Fatal(err)
@@ -136,7 +136,7 @@ func (postgres *postgresStorage) Fetch() ([]TaskAttributes, error) {
 
 func (postgres *postgresStorage) Remove(task TaskAttributes) error {
 	// should delete the entry from `task_stor` table.
-	stmt, err := postgres.db.Prepare(`DELETE FROM task_store WHERE hash=($1) ;`)
+	stmt, err := postgres.db.Prepare(`DELETE FROM scheduled_tasks WHERE hash=($1) ;`)
 
 	if err != nil {
 		return fmt.Errorf("Error while pareparing delete task statement: %s+v", err)
@@ -156,7 +156,7 @@ func (postgres *postgresStorage) Remove(task TaskAttributes) error {
 
 func (postgres *postgresStorage) insert(task TaskAttributes) (err error) {
 	stmt, err := postgres.db.Prepare(`
-        INSERT INTO task_store(name, params, duration, last_run, next_run, is_recurring, hash)
+        INSERT INTO scheduled_tasks(name, params, duration, last_run, next_run, is_recurring, hash)
         VALUES(($1), ($2), ($3), ($4), ($5), ($6), ($7));`)
 
 	if err != nil {
@@ -182,7 +182,7 @@ func (postgres *postgresStorage) insert(task TaskAttributes) (err error) {
 }
 
 func (postgres *postgresStorage) update(task TaskAttributes) (err error) {
-	stmt, err := postgres.db.Prepare(`UPDATE task_store SET last_run = ($1), next_run = ($2) WHERE hash = ($3);`)
+	stmt, err := postgres.db.Prepare(`UPDATE scheduled_tasks SET last_run = ($1), next_run = ($2) WHERE hash = ($3);`)
 
 	if err != nil {
 		return fmt.Errorf("Error while pareparing update task statement: %s", err)

@@ -33,6 +33,10 @@ func (s *storeMock) Add(task storage.TaskAttributes) error {
 	return nil
 }
 
+func (s *storeMock) Update(task storage.TaskAttributes) error {
+	return nil
+}
+
 func (s *storeMock) Fetch() ([]storage.TaskAttributes, error) {
 	if s.Mode == fail {
 		return []storage.TaskAttributes{}, fmt.Errorf("Error")
