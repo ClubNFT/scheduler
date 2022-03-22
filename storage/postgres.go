@@ -87,6 +87,23 @@ func (postgres *postgresStorage) Add(task TaskAttributes) error {
 	return nil
 }
 
+func (postgres *postgresStorage) Update(task TaskAttributes) error {
+	// should update a task in the database `task_store` table
+	var count int
+	rows, err := postgres.db.Query("SELECT count(*) FROM task_store WHERE hash=($1) ;", task.Hash)
+	defer rows.Close()
+	if err == nil {
+		rows.Next()
+		_ = rows.Scan(&count)
+	}
+
+	if count == 0 {
+		return nil
+	}
+
+	return postgres.update(task)
+}
+
 func (postgres *postgresStorage) Fetch() ([]TaskAttributes, error) {
 	// read all the rows task_store table.
 	rows, err := postgres.db.Query(`
@@ -159,6 +176,27 @@ func (postgres *postgresStorage) insert(task TaskAttributes) (err error) {
 	)
 	if err != nil {
 		return fmt.Errorf("Error while inserting task: %s", err)
+	}
+
+	return nil
+}
+
+func (postgres *postgresStorage) update(task TaskAttributes) (err error) {
+	stmt, err := postgres.db.Prepare(`UPDATE task_store SET last_run = ($1), next_run = ($2) WHERE hash = ($3);`)
+
+	if err != nil {
+		return fmt.Errorf("Error while pareparing update task statement: %s", err)
+	}
+
+	defer stmt.Close()
+
+	_, err = stmt.Exec(
+		task.LastRun,
+		task.NextRun,
+		task.Hash,
+	)
+	if err != nil {
+		return fmt.Errorf("Error while updating task: %s", err)
 	}
 
 	return nil

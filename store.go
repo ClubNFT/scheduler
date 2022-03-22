@@ -24,6 +24,14 @@ func (sb *storeBridge) Add(task *task.Task) error {
 	return sb.store.Add(attributes)
 }
 
+func (sb *storeBridge) Update(task *task.Task) error {
+	attributes, err := sb.getTaskAttributes(task)
+	if err != nil {
+		return err
+	}
+	return sb.store.Update(attributes)
+}
+
 func (sb *storeBridge) Fetch() ([]*task.Task, error) {
 	storedTasks, err := sb.store.Fetch()
 	if err != nil {
