@@ -3,7 +3,7 @@ package scheduler
 import (
 	"fmt"
 
-	"github.com/rakanalh/scheduler/storage"
+	"github.com/ClubNFT/scheduler/storage"
 )
 
 type failureMode int
@@ -30,6 +30,10 @@ func newStoreMockWithMode(mode failureMode) *storeMock {
 }
 
 func (s *storeMock) Add(task storage.TaskAttributes) error {
+	return nil
+}
+
+func (s *storeMock) Update(task storage.TaskAttributes) error {
 	return nil
 }
 
@@ -69,7 +73,7 @@ func (s *storeMock) Fetch() ([]storage.TaskAttributes, error) {
 	if s.Mode == failOnFuncMeta {
 		taskAttributes.Name = "NonExistentName"
 	} else {
-		taskAttributes.Name = "github.com/rakanalh/scheduler.mockFunction"
+		taskAttributes.Name = "github.com/ClubNFT/scheduler.mockFunction"
 	}
 
 	if s.Mode == failOnEmptyParams {

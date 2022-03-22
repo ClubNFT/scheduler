@@ -16,6 +16,7 @@ type TaskAttributes struct {
 // TaskStore is the interface to implement when adding custom task storage.
 type TaskStore interface {
 	Add(TaskAttributes) error
+	Update(TaskAttributes) error
 	Fetch() ([]TaskAttributes, error)
 	Remove(TaskAttributes) error
 	Close() error

@@ -4,6 +4,10 @@ package storage
 type NoOpStorage struct {
 }
 
+func (noop NoOpStorage) Update(attributes TaskAttributes) error {
+	return nil
+}
+
 // NewNoOpStorage returns an instance of NoOpStorage
 func NewNoOpStorage() NoOpStorage {
 	return NoOpStorage{}

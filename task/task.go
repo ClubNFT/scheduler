@@ -51,10 +51,6 @@ func (task *Task) IsDue() bool {
 
 // Run will execute the task and schedule it's next run.
 func (task *Task) Run() {
-	// Reschedule task first to prevent running the task
-	// again in case the execution time takes more than the
-	// task's duration value.
-	task.scheduleNextRun()
 
 	function := reflect.ValueOf(task.Func.function)
 	params := make([]reflect.Value, len(task.Params))
@@ -74,7 +70,7 @@ func (task *Task) Hash() ID {
 	return ID(fmt.Sprintf("%x", hash.Sum(nil)))
 }
 
-func (task *Task) scheduleNextRun() {
+func (task *Task) ScheduleNextRun() {
 	if !task.IsRecurring {
 		return
 	}

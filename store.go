@@ -7,8 +7,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/rakanalh/scheduler/storage"
-	"github.com/rakanalh/scheduler/task"
+	"github.com/ClubNFT/scheduler/storage"
+	"github.com/ClubNFT/scheduler/task"
 )
 
 type storeBridge struct {
@@ -22,6 +22,14 @@ func (sb *storeBridge) Add(task *task.Task) error {
 		return err
 	}
 	return sb.store.Add(attributes)
+}
+
+func (sb *storeBridge) Update(task *task.Task) error {
+	attributes, err := sb.getTaskAttributes(task)
+	if err != nil {
+		return err
+	}
+	return sb.store.Update(attributes)
 }
 
 func (sb *storeBridge) Fetch() ([]*task.Task, error) {

@@ -11,8 +11,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/rakanalh/scheduler/storage"
-	"github.com/rakanalh/scheduler/task"
+	"github.com/ClubNFT/scheduler/storage"
+	"github.com/ClubNFT/scheduler/task"
 )
 
 // Scheduler is used to schedule tasks. It holds information about those tasks
@@ -198,7 +198,16 @@ func (scheduler *Scheduler) persistRegisteredTasks() error {
 func (scheduler *Scheduler) runPending() {
 	for _, task := range scheduler.tasks {
 		if task.IsDue() {
+
+			// Reschedule task first to prevent running the task
+			// again in case the execution time takes more than the
+			// task's duration value.
+			task.ScheduleNextRun()
+
 			go task.Run()
+
+			//TODO: update task in database
+			_ = scheduler.taskStore.Update(task)
 
 			if !task.IsRecurring {
 				_ = scheduler.taskStore.Remove(task)
