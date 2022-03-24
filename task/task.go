@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/ClubNFT/scheduler/config"
 	"io"
+	"log"
 	"time"
 )
 
@@ -54,7 +55,7 @@ func (task *Task) IsDue() bool {
 
 // Run will execute the task and schedule it's next run.
 func (task *Task) Run() {
-	//TODO: https://medium.com/@vicky.kurniawan/go-call-a-function-from-string-name-30b41dcb9e12
+	// https://medium.com/@vicky.kurniawan/go-call-a-function-from-string-name-30b41dcb9e12
 
 	b := make([]interface{}, len(task.Params))
 	for i := range task.Params {
@@ -63,7 +64,7 @@ func (task *Task) Run() {
 
 	_, err := task.FuncManager.Call(task.Func.Name, b...)
 	if err != nil {
-		return
+		log.Printf("Error calling function %s. Error: %s", task.Func.Name, err)
 	}
 }
 

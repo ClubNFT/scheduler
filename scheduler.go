@@ -27,7 +27,6 @@ type Scheduler struct {
 
 // New will return a new instance of the Scheduler struct.
 func New(store storage.TaskStore, stubStorage config.StubMapping) Scheduler {
-
 	funcManager := *config.NewFunctionManager(stubStorage)
 	return Scheduler{
 		stopChan: make(chan bool),
@@ -185,16 +184,6 @@ func (scheduler *Scheduler) populateTasks() error {
 			scheduler.tasks[dbTask.Hash()] = registeredTask
 		}
 
-		// Skip task which is not a recurring one and the NextRun has already passed
-		// TODO: should really remove?
-		//if !dbTask.IsRecurring && dbTask.NextRun.Before(time.Now()) {
-		//	// We might have a task instance which was executed already.
-		//	// In this case, delete it.
-		//	_ = scheduler.taskStore.Remove(dbTask)
-		//	delete(scheduler.tasks, dbTask.Hash())
-		//	continue
-		//}
-
 		// Duration may have changed for recurring tasks
 		if dbTask.IsRecurring && registeredTask.Duration != dbTask.Duration {
 			// Reschedule NextRun based on dbTask.LastRun + registeredTask.Duration
@@ -225,11 +214,11 @@ func (scheduler *Scheduler) runPending() {
 
 			go task.Run()
 
-			_ = scheduler.taskStore.Update(task)
-
 			if !task.IsRecurring {
 				_ = scheduler.taskStore.Remove(task)
 				delete(scheduler.tasks, task.Hash())
+			} else {
+				_ = scheduler.taskStore.Update(task)
 			}
 		}
 	}

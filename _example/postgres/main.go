@@ -13,14 +13,14 @@ func TaskWithoutArgs() {
 	log.Println("TaskWithoutArgs is executed")
 }
 
-func TaskWithArgs(message string, message2 string) {
+func TaskWithArgs(message string) {
 	log.Println("TaskWithArgs is executed. message:", message)
 }
 
 func main() {
 	storage, err := storage.NewPostgresStorage(
 		storage.PostgresDBConfig{
-			DbURL: "postgresql://queen:password@localhost:5432/clubnft?sslmode=disable",
+			DbURL: "postgresql://<user>:<password>@localhost:5432/<db>?sslmode=disable",
 		},
 	)
 	if err != nil {
@@ -42,19 +42,24 @@ func main() {
 		s.Stop()
 	}(s, storage)
 
-	// Start a task without arguments
-	//if _, err := s.RunAfter(60*time.Second, TaskWithoutArgs); err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//// Start a task with arguments
-	//if _, err := s.RunEvery(5*time.Second, TaskWithArgs, "Hello from recurring task 1", "ola voce 2"); err != nil {
-	//	log.Fatal(err)
-	//}
-	//
-	//// Start the same task as above with a different argument
-	//if _, err := s.RunEvery(10*time.Second, TaskWithArgs, "Hello from recurring task 2", "ola voce 2"); err != nil {
-	//	log.Fatal(err)
-	//}
+	// Start a task without arguments and execute only once
+	if _, err := s.RunAfter(60*time.Second, TaskWithoutArgs); err != nil {
+		log.Fatal(err)
+	}
+
+	// Start a task with arguments and execute only once
+	if _, err := s.RunAfter(30*time.Second, TaskWithArgs, "reportId"); err != nil {
+		log.Fatal(err)
+	}
+
+	// Start a task with arguments periodically
+	if _, err := s.RunEvery(5*time.Second, TaskWithArgs, "Hello from recurring task 1"); err != nil {
+		log.Fatal(err)
+	}
+
+	// Start the same task as above with a different argument
+	if _, err := s.RunEvery(10*time.Second, TaskWithArgs, "Hello from recurring task 2"); err != nil {
+		log.Fatal(err)
+	}
 	s.Wait()
 }
