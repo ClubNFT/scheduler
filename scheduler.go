@@ -5,6 +5,7 @@ package scheduler
 
 import (
 	"fmt"
+	"github.com/ClubNFT/scheduler/config"
 	"log"
 	"os"
 	"os/signal"
@@ -18,60 +19,68 @@ import (
 // Scheduler is used to schedule tasks. It holds information about those tasks
 // including metadata such as argument types and schedule times
 type Scheduler struct {
-	funcRegistry *task.FuncRegistry
-	stopChan     chan bool
-	tasks        map[task.ID]*task.Task
-	taskStore    storeBridge
+	stopChan    chan bool
+	tasks       map[task.ID]*task.Task
+	taskStore   storeBridge
+	funcManager config.FunctionManager
 }
 
 // New will return a new instance of the Scheduler struct.
-func New(store storage.TaskStore) Scheduler {
-	funcRegistry := task.NewFuncRegistry()
+func New(store storage.TaskStore, stubStorage config.StubMapping) Scheduler {
+
+	funcManager := *config.NewFunctionManager(stubStorage)
 	return Scheduler{
-		funcRegistry: funcRegistry,
-		stopChan:     make(chan bool),
-		tasks:        make(map[task.ID]*task.Task),
+		stopChan: make(chan bool),
+		tasks:    make(map[task.ID]*task.Task),
 		taskStore: storeBridge{
-			store:        store,
-			funcRegistry: funcRegistry,
+			store:       store,
+			funcManager: funcManager,
 		},
+		funcManager: funcManager,
 	}
 }
 
 // RunAt will schedule function to be executed once at the given time.
-func (scheduler *Scheduler) RunAt(time time.Time, function task.Function, params ...task.Param) (task.ID, error) {
-	funcMeta, err := scheduler.funcRegistry.Add(function)
+func (scheduler *Scheduler) RunAt(time time.Time, function task.Function, params ...string) (task.ID, error) {
+	meta, err := task.Translate(function)
 	if err != nil {
 		return "", err
 	}
-
-	task := task.New(funcMeta, params)
+	task := task.New(meta, params, scheduler.funcManager)
 
 	task.NextRun = time
 
 	scheduler.registerTask(task)
+	err = scheduler.Refresh()
+	if err != nil {
+		return "", err
+	}
 	return task.Hash(), nil
 }
 
 // RunAfter executes function once after a specific duration has elapsed.
-func (scheduler *Scheduler) RunAfter(duration time.Duration, function task.Function, params ...task.Param) (task.ID, error) {
+func (scheduler *Scheduler) RunAfter(duration time.Duration, function task.Function, params ...string) (task.ID, error) {
 	return scheduler.RunAt(time.Now().Add(duration), function, params...)
 }
 
 // RunEvery will schedule function to be executed every time the duration has elapsed.
-func (scheduler *Scheduler) RunEvery(duration time.Duration, function task.Function, params ...task.Param) (task.ID, error) {
-	funcMeta, err := scheduler.funcRegistry.Add(function)
+func (scheduler *Scheduler) RunEvery(duration time.Duration, function task.Function, params ...string) (task.ID, error) {
+	meta, err := task.Translate(function)
 	if err != nil {
 		return "", err
 	}
-
-	task := task.New(funcMeta, params)
+	task := task.New(meta, params, scheduler.funcManager)
 
 	task.IsRecurring = true
 	task.Duration = duration
 	task.NextRun = time.Now().Add(duration)
 
 	scheduler.registerTask(task)
+	err = scheduler.Refresh()
+	if err != nil {
+		return "", err
+	}
+
 	return task.Hash(), nil
 }
 
@@ -82,12 +91,11 @@ func (scheduler *Scheduler) Start() error {
 	signal.Notify(sigChan, syscall.SIGINT, syscall.SIGTERM)
 
 	// Populate tasks from storage
-	if err := scheduler.populateTasks(); err != nil {
+	err := scheduler.Refresh()
+	if err != nil {
 		return err
 	}
-	if err := scheduler.persistRegisteredTasks(); err != nil {
-		return err
-	}
+
 	scheduler.runPending()
 
 	go func() {
@@ -104,6 +112,17 @@ func (scheduler *Scheduler) Start() error {
 		}
 	}()
 
+	return nil
+}
+
+func (scheduler *Scheduler) Refresh() error {
+	// Populate tasks from storage
+	if err := scheduler.populateTasks(); err != nil {
+		return err
+	}
+	if err := scheduler.persistRegisteredTasks(); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -137,7 +156,6 @@ func (scheduler *Scheduler) Clear() {
 		_ = scheduler.taskStore.Remove(currentTask)
 		delete(scheduler.tasks, taskID)
 	}
-	scheduler.funcRegistry = task.NewFuncRegistry()
 }
 
 func (scheduler *Scheduler) populateTasks() error {
@@ -147,13 +165,13 @@ func (scheduler *Scheduler) populateTasks() error {
 	}
 
 	for _, dbTask := range tasks {
-		// If we can't find the function, it's been changed/removed by user
-		exists := scheduler.funcRegistry.Exists(dbTask.Func.Name)
-		if !exists {
-			log.Printf("%s was not found, it will be removed\n", dbTask.Func.Name)
-			_ = scheduler.taskStore.Remove(dbTask)
-			continue
-		}
+		//// If we can't find the function, it's been changed/removed by user
+		//exists := scheduler.funcRegistry.Exists(dbTask.Func.Name)
+		//if !exists {
+		//	log.Printf("%s was not found, it will be removed\n", dbTask.Func.Name)
+		//	_ = scheduler.taskStore.Remove(dbTask)
+		//	continue
+		//}
 
 		// If the task instance is still registered with the same computed hash then move on.
 		// Otherwise, one of the attributes changed and therefore, the task instance should
@@ -162,19 +180,20 @@ func (scheduler *Scheduler) populateTasks() error {
 		if !ok {
 			log.Printf("Detected a change in attributes of one of the instances of task %s, \n",
 				dbTask.Func.Name)
-			dbTask.Func, _ = scheduler.funcRegistry.Get(dbTask.Func.Name)
+			//dbTask.Func, _ = scheduler.funcRegistry.Get(dbTask.Func.Name)
 			registeredTask = dbTask
 			scheduler.tasks[dbTask.Hash()] = registeredTask
 		}
 
 		// Skip task which is not a recurring one and the NextRun has already passed
-		if !dbTask.IsRecurring && dbTask.NextRun.Before(time.Now()) {
-			// We might have a task instance which was executed already.
-			// In this case, delete it.
-			_ = scheduler.taskStore.Remove(dbTask)
-			delete(scheduler.tasks, dbTask.Hash())
-			continue
-		}
+		// TODO: should really remove?
+		//if !dbTask.IsRecurring && dbTask.NextRun.Before(time.Now()) {
+		//	// We might have a task instance which was executed already.
+		//	// In this case, delete it.
+		//	_ = scheduler.taskStore.Remove(dbTask)
+		//	delete(scheduler.tasks, dbTask.Hash())
+		//	continue
+		//}
 
 		// Duration may have changed for recurring tasks
 		if dbTask.IsRecurring && registeredTask.Duration != dbTask.Duration {
@@ -206,7 +225,6 @@ func (scheduler *Scheduler) runPending() {
 
 			go task.Run()
 
-			//TODO: update task in database
 			_ = scheduler.taskStore.Update(task)
 
 			if !task.IsRecurring {
@@ -218,6 +236,5 @@ func (scheduler *Scheduler) runPending() {
 }
 
 func (scheduler *Scheduler) registerTask(task *task.Task) {
-	_, _ = scheduler.funcRegistry.Add(task.Func)
 	scheduler.tasks[task.Hash()] = task
 }

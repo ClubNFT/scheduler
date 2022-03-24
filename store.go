@@ -1,10 +1,8 @@
 package scheduler
 
 import (
-	"encoding/json"
-	"reflect"
+	"github.com/ClubNFT/scheduler/config"
 	"strconv"
-	"strings"
 	"time"
 
 	"github.com/ClubNFT/scheduler/storage"
@@ -12,8 +10,8 @@ import (
 )
 
 type storeBridge struct {
-	store        storage.TaskStore
-	funcRegistry *task.FuncRegistry
+	store       storage.TaskStore
+	funcManager config.FunctionManager
 }
 
 func (sb *storeBridge) Add(task *task.Task) error {
@@ -59,22 +57,12 @@ func (sb *storeBridge) Fetch() ([]*task.Task, error) {
 			return nil, err
 		}
 
-		funcMeta, err := sb.funcRegistry.Get(storedTask.Name)
-		if err != nil {
-			return nil, err
-		}
-
-		params, err := paramsFromString(funcMeta, storedTask.Params)
-		if err != nil {
-			return nil, err
-		}
-
-		t := task.NewWithSchedule(funcMeta, params, task.Schedule{
+		t := task.NewWithSchedule(task.FunctionMeta{Name: storedTask.Name}, storedTask.Params, task.Schedule{
 			IsRecurring: isRecurring == 1,
 			Duration:    time.Duration(duration),
 			LastRun:     lastRun,
 			NextRun:     nextRun,
-		})
+		}, sb.funcManager)
 		tasks = append(tasks, t)
 	}
 	return tasks, nil
@@ -89,11 +77,6 @@ func (sb *storeBridge) Remove(task *task.Task) error {
 }
 
 func (sb *storeBridge) getTaskAttributes(task *task.Task) (storage.TaskAttributes, error) {
-	params, err := paramsToString(task.Params)
-	if err != nil {
-		return storage.TaskAttributes{}, err
-	}
-
 	isRecurring := 0
 	if task.IsRecurring {
 		isRecurring = 1
@@ -106,44 +89,6 @@ func (sb *storeBridge) getTaskAttributes(task *task.Task) (storage.TaskAttribute
 		NextRun:     task.NextRun.Format(time.RFC3339),
 		Duration:    task.Duration.String(),
 		IsRecurring: strconv.Itoa(isRecurring),
-		Params:      params,
+		Params:      task.Params,
 	}, nil
-}
-
-func paramsToString(params []task.Param) (string, error) {
-	var paramsList []string
-	for _, param := range params {
-		paramStr, err := json.Marshal(param)
-		if err != nil {
-			return "", err
-		}
-		paramsList = append(paramsList, string(paramStr))
-	}
-	data, err := json.Marshal(paramsList)
-	return string(data), err
-}
-
-func paramsFromString(funcMeta task.FunctionMeta, payload string) ([]task.Param, error) {
-	var params []task.Param
-	if strings.TrimSpace(payload) == "" {
-		return params, nil
-	}
-	paramTypes := funcMeta.Params()
-	var paramsStrings []string
-	err := json.Unmarshal([]byte(payload), &paramsStrings)
-	if err != nil {
-		return params, err
-	}
-	for i, paramStr := range paramsStrings {
-		paramType := paramTypes[i]
-		target := reflect.New(paramType)
-		err := json.Unmarshal([]byte(paramStr), target.Interface())
-		if err != nil {
-			return params, err
-		}
-		param := reflect.Indirect(target).Interface().(task.Param)
-		params = append(params, param)
-	}
-
-	return params, nil
 }
