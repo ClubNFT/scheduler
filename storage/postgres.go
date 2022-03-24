@@ -2,6 +2,7 @@ package storage
 
 import (
 	"database/sql"
+	"encoding/json"
 	"fmt"
 	"log"
 
@@ -121,10 +122,20 @@ func (postgres *postgresStorage) Fetch() ([]TaskAttributes, error) {
 	for rows.Next() {
 		// var task TaskAttributes
 		task := TaskAttributes{}
-		err = rows.Scan(&task.Name, &task.Params, &task.Duration, &task.LastRun, &task.NextRun, &task.IsRecurring)
+
+		var arrStr string
+		var arr []string
+		err := rows.Scan(&task.Name, &arrStr, &task.Duration, &task.LastRun, &task.NextRun, &task.IsRecurring)
 		if err != nil {
 			return []TaskAttributes{}, err
 		}
+
+		err = json.Unmarshal([]byte(arrStr), &arr)
+		if err != nil {
+			return []TaskAttributes{}, err
+		}
+
+		task.Params = arr
 		tasks = append(tasks, task)
 	}
 	err = rows.Err()
@@ -165,9 +176,10 @@ func (postgres *postgresStorage) insert(task TaskAttributes) (err error) {
 
 	defer stmt.Close()
 
+	paramsJson, _ := json.Marshal(task.Params)
 	_, err = stmt.Exec(
 		task.Name,
-		task.Params,
+		paramsJson,
 		task.Duration,
 		task.LastRun,
 		task.NextRun,

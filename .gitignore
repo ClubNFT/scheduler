@@ -2,3 +2,4 @@
 *.out
 vendor
 coverage.txt
+.idea

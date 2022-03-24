@@ -10,7 +10,7 @@ type TaskAttributes struct {
 	NextRun     string
 	Duration    string
 	IsRecurring string
-	Params      string
+	Params      []string
 }
 
 // TaskStore is the interface to implement when adding custom task storage.

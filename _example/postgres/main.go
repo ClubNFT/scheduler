@@ -20,14 +20,21 @@ func TaskWithArgs(message string) {
 func main() {
 	storage, err := storage.NewPostgresStorage(
 		storage.PostgresDBConfig{
-			DbURL: "postgresql://<db-username>:<db-password>@localhost:5432/scheduler?sslmode=disable",
+			DbURL: "postgresql://<user>:<password>@localhost:5432/<db>?sslmode=disable",
 		},
 	)
 	if err != nil {
 		log.Fatalf("Couldn't create scheduler storage : %v", err)
 	}
 
-	s := scheduler.New(storage)
+	stubStorage := map[string]interface{}{
+		"main.TaskWithArgs":    TaskWithArgs,
+		"main.TaskWithoutArgs": TaskWithoutArgs,
+	}
+
+	s := scheduler.New(storage, stubStorage)
+
+	s.Start()
 
 	go func(s scheduler.Scheduler, store io.Closer) {
 		time.Sleep(time.Minute * 5)
@@ -35,12 +42,17 @@ func main() {
 		s.Stop()
 	}(s, storage)
 
-	// Start a task without arguments
+	// Start a task without arguments and execute only once
 	if _, err := s.RunAfter(60*time.Second, TaskWithoutArgs); err != nil {
 		log.Fatal(err)
 	}
 
-	// Start a task with arguments
+	// Start a task with arguments and execute only once
+	if _, err := s.RunAfter(30*time.Second, TaskWithArgs, "reportId"); err != nil {
+		log.Fatal(err)
+	}
+
+	// Start a task with arguments periodically
 	if _, err := s.RunEvery(5*time.Second, TaskWithArgs, "Hello from recurring task 1"); err != nil {
 		log.Fatal(err)
 	}
@@ -49,6 +61,5 @@ func main() {
 	if _, err := s.RunEvery(10*time.Second, TaskWithArgs, "Hello from recurring task 2"); err != nil {
 		log.Fatal(err)
 	}
-	s.Start()
 	s.Wait()
 }

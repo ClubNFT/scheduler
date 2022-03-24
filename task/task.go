@@ -3,8 +3,9 @@ package task
 import (
 	"crypto/sha1"
 	"fmt"
+	"github.com/ClubNFT/scheduler/config"
 	"io"
-	"reflect"
+	"log"
 	"time"
 )
 
@@ -22,24 +23,27 @@ type Schedule struct {
 // Task holds information about task
 type Task struct {
 	Schedule
-	Func   FunctionMeta
-	Params []Param
+	Func        FunctionMeta
+	Params      []string
+	FuncManager config.FunctionManager
 }
 
 // New returns an instance of task
-func New(function FunctionMeta, params []Param) *Task {
+func New(function FunctionMeta, params []string, funcManager config.FunctionManager) *Task {
 	return &Task{
-		Func:   function,
-		Params: params,
+		Func:        function,
+		Params:      params,
+		FuncManager: funcManager,
 	}
 }
 
 // NewWithSchedule creates an instance of task with the provided schedule information
-func NewWithSchedule(function FunctionMeta, params []Param, schedule Schedule) *Task {
+func NewWithSchedule(function FunctionMeta, params []string, schedule Schedule, funcManager config.FunctionManager) *Task {
 	return &Task{
-		Func:     function,
-		Params:   params,
-		Schedule: schedule,
+		Func:        function,
+		Params:      params,
+		Schedule:    schedule,
+		FuncManager: funcManager,
 	}
 }
 
@@ -51,13 +55,17 @@ func (task *Task) IsDue() bool {
 
 // Run will execute the task and schedule it's next run.
 func (task *Task) Run() {
+	// https://medium.com/@vicky.kurniawan/go-call-a-function-from-string-name-30b41dcb9e12
 
-	function := reflect.ValueOf(task.Func.function)
-	params := make([]reflect.Value, len(task.Params))
-	for i, param := range task.Params {
-		params[i] = reflect.ValueOf(param)
+	b := make([]interface{}, len(task.Params))
+	for i := range task.Params {
+		b[i] = task.Params[i]
 	}
-	function.Call(params)
+
+	_, err := task.FuncManager.Call(task.Func.Name, b...)
+	if err != nil {
+		log.Printf("Error calling function %s. Error: %s", task.Func.Name, err)
+	}
 }
 
 // Hash will return the SHA1 representation of the task's data.

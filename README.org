@@ -7,11 +7,16 @@ Go Task scheduler is a small library that you can use within your application th
 amount of time. GTS also provides task storage which is used to invoke callbacks for tasks which couldn't be executed
 during down-time as well as maintaining a history of the callbacks that got executed.
 
+** Fixed in this fork:
+- Update recurring tasks last and next run values
+- Add tasks and persist to DB on the fly, not only on service spin-up
+- Persisted tasks execution (recurring and scheduled) on service restart
+- Due task should execute as soon as service restarts
+
 ** Features
 - Execute tasks based after a specific duration or at a specific point in time
 - Job stores for history & recovery, provided stores out of the box:
- - Sqlite3
- - Redis (Coming soon)
+ - Postgres
 
 * Installation
 #+BEGIN_SRC shell
@@ -23,28 +28,20 @@ go get github.com/ClubNFT/scheduler
 Instantiate a scheduler as follows:
 
 #+BEGIN_SRC go
-s := scheduler.New(storage)
+s := scheduler.New(storage, funcManager)
 #+END_SRC
 
-GTS currently supports 2 kinds of storages:
-1. NoOpStorage: Does nothing
+GTS currently supports 1 kind of storage:
+1. PostgresStorage: Persists tasks into a SQLite3 database.
 #+BEGIN_SRC go
-noOpStorage := storage.NewNoOpStorage()
-#+END_SRC
-2. MemoryStorage: Does nothing
-#+BEGIN_SRC go
-memStorage := storage.NewMemoryStorage()
-#+END_SRC
-2. SqliteStorage: Persists tasks into a SQLite3 database.
-#+BEGIN_SRC go
-sqliteStorage := storage.NewSqlite3Storage()
+postgresStorage := storage.NewPostgresStorage()
 #+END_SRC
 
 Example:
 #+BEGIN_SRC go
-storage := storage.NewSqlite3Storage(
-	storage.Sqlite3Config{
-		DbName: "db.store",
+storage := storage.NewPostgresStorage(
+	storage.PostgresDBConfig{
+		DbURL: "postgresql://<user>:<password>@localhost:5432/<db>?sslmode=disable",
 	},
 )
 if err := storage.Connect(); err != nil {
